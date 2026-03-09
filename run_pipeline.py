@@ -22,8 +22,9 @@ def process_file(filepath):
 
     # Enrich data
     websites = []
-    scraped_texts = []
     classifications = []
+    confidence_scores = []
+    crop_types = []
     linkedin_pages = []
 
     for index, row in df.iterrows():
@@ -38,11 +39,12 @@ def process_file(filepath):
         scraped_text = ""
         if website:
             scraped_text = scrape_website(website)
-        scraped_texts.append(scraped_text)
 
         # 5. AI Classification
-        classification = classify_company(company, scraped_text)
+        classification, score, crop_type = classify_company(company, scraped_text)
         classifications.append(classification)
+        confidence_scores.append(score)
+        crop_types.append(crop_type)
 
         # 6. Find LinkedIn
         linkedin = find_linkedin(company)
@@ -50,9 +52,9 @@ def process_file(filepath):
 
     df['website'] = websites
     df['classification'] = classifications
+    df['confidence_score'] = confidence_scores
+    df['crop_type'] = crop_types
     df['linkedin'] = linkedin_pages
-    # We don't necessarily want to export the raw scraped text, but we could
-    # df['scraped_text'] = scraped_texts
 
     # 7. Export
     filename = os.path.basename(filepath)
