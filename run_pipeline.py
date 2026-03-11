@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from file_loader import load_file
-from lead_cleaner import clean_leads
+from lead_cleaner import smart_clean_leads
 from website_finder import find_website
 from web_scraper import scrape_website
 from ai_classifier import classify_company
@@ -17,8 +17,8 @@ def process_file(filepath):
     # 1. Load file
     df = load_file(filepath)
 
-    # 2. Clean leads
-    df = clean_leads(df)
+    # 2. Smart Clean leads
+    df = smart_clean_leads(df)
 
     # Enrich data
     websites = []
@@ -29,6 +29,15 @@ def process_file(filepath):
 
     for index, row in df.iterrows():
         company = row['organization']
+        if not company:
+            print(f"  Skipping row {index}: No organization found.")
+            websites.append("")
+            classifications.append("Unknown")
+            confidence_scores.append(0)
+            crop_types.append("N/A")
+            linkedin_pages.append("")
+            continue
+
         print(f"  Enriching: {company}")
 
         # 3. Find website

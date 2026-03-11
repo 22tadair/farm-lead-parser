@@ -1,5 +1,6 @@
 import google.generativeai as genai
 import os
+import json
 
 _model = None
 
@@ -75,3 +76,70 @@ def classify_company(company_name, scraped_text):
     except Exception as e:
         print(f"Error classifying {company_name}: {e}")
         return "Other", 0, "N/A"
+
+def parse_messy_row(row_text):
+    """
+    Uses Gemini to extract structured fields from a messy string or row.
+    """
+    model = get_model()
+    if not model:
+        return {}
+
+    prompt = f"""
+    Extract lead information from the following text.
+    The text might contain a name, organization, and location all in one string.
+
+    Text: {row_text}
+
+    Return a JSON object with the following keys:
+    first_name, last_name, organization, street, city, state, postal_code, country, designation, phone, email
+
+    If a field is missing, use an empty string.
+    Return ONLY the JSON.
+    """
+
+    try:
+        response = model.generate_content(prompt)
+        json_str = response.text.strip()
+        # Clean up markdown code blocks if present
+        if json_str.startswith('```json'):
+            json_str = json_str[7:-3].strip()
+        elif json_str.startswith('```'):
+            json_str = json_str[3:-3].strip()
+        return json.loads(json_str)
+    except Exception as e:
+        print(f"Error parsing messy row: {e}")
+        return {}
+
+def analyze_leads_structure(sample_rows_json):
+    """
+    Analyzes sample rows to determine how to map columns to standard fields.
+    """
+    model = get_model()
+    if not model:
+        return None
+
+    prompt = f"""
+    Given the following sample rows from a spreadsheet (as JSON),
+    determine which column names map to our standard fields:
+    first_name, last_name, organization, email, phone, street, city, state, postal_code, country, designation
+
+    Sample Data:
+    {sample_rows_json}
+
+    Return a JSON object where keys are the original column names and values are the standard field names.
+    If a column contains multiple pieces of information (like Name and Org), map it to 'merged'.
+    Return ONLY the JSON.
+    """
+
+    try:
+        response = model.generate_content(prompt)
+        json_str = response.text.strip()
+        if json_str.startswith('```json'):
+            json_str = json_str[7:-3].strip()
+        elif json_str.startswith('```'):
+            json_str = json_str[3:-3].strip()
+        return json.loads(json_str)
+    except Exception as e:
+        print(f"Error analyzing structure: {e}")
+        return None
