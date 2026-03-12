@@ -1,0 +1,5 @@
+__pycache__/
+output/*.xlsx
+output/*.xls
+output/*.csv
+input/sample_leads.csv
