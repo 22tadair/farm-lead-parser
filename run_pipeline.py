@@ -56,6 +56,7 @@ def process_file(filepath):
             messy_text = " ".join([str(v) for v in row.values if pd.notna(v)])
             print(f"  Surgery in progress on: {messy_text[:40]}...")
             parsed_row = parse_messy_lead(messy_text)
+            print(f"DEBUG: AI Returned -> {parsed_row}") # Add this line
 
         # Clean company name: text before semi-colon
         company_name = parsed_row[2].split(';')[0].strip()

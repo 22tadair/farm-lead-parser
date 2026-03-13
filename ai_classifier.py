@@ -11,7 +11,7 @@ def parse_messy_lead(raw_blob):
         return ["N/A"] * 12
 
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
     prompt = f"""
     You are a data entry expert. Parse the following messy lead text into structured fields.
@@ -65,7 +65,7 @@ def classify_enrichment(company_name, scraped_text):
     if not api_key: return "0 | N/A"
 
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
     prompt = f"""
     Based on the following company name and scraped website text, provide:
