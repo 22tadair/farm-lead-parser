@@ -1,17 +1,15 @@
 import google.generativeai as genai
-import os
+
+# Hardcoded API Key as requested by the user
+API_KEY = "AIzaSyDI3m_XzHKh7KHwreGUWSyqn0MZnWKwqss"
 
 def parse_messy_lead(raw_blob):
     """
     Takes a massive string of text and breaks it into 12 structured categories.
     Extremely strict about separating Organization/Company from location data.
     """
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return ["N/A"] * 12
-
-    genai.configure(api_key=api_key)
-    # Using gemini-2.0-flash which is available in this environment
+    genai.configure(api_key=API_KEY)
+    # Using gemini-2.0-flash
     model = genai.GenerativeModel('gemini-2.0-flash')
 
     prompt = f"""
@@ -69,16 +67,13 @@ def classify_enrichment(company_name, scraped_text):
     """
     Secondary classification based on scraped text.
     """
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key: return "0 | N/A"
-
-    genai.configure(api_key=api_key)
+    genai.configure(api_key=API_KEY)
     model = genai.GenerativeModel('gemini-2.0-flash')
 
     prompt = f"""
     Based on the following company name and scraped website text, provide:
     1. Confidence Score (0-100)
-    2. Type of Crop (List crops if Grower, else 'N/A')
+    2. Type of Crop (List crops if Grower, else 'N/A'. If Grower but no specific crops found, return 'General Agriculture')
 
     Company: {company_name}
     Text: {scraped_text}
