@@ -4,7 +4,7 @@ from file_loader import load_file
 from lead_cleaner import clean_leads
 from website_finder import find_website
 from web_scraper import scrape_website
-from ai_classifier import classify_company
+from ai_classifier import parse_messy_lead, classify_enrichment
 from linkedin_finder import find_linkedin
 from exporter import export_to_excel
 
@@ -17,90 +17,60 @@ def process_file(filepath):
     # 1. Load file
     df = load_file(filepath)
 
-    # 2. Clean leads (Basic normalization to identify the organization/messy cell)
+    # 2. Clean leads (Identify organization/messy cell)
     df = clean_leads(df)
 
     if df.empty:
         print(f"  File {filepath} resulted in empty dataframe after cleaning.")
         return
 
-    # Results lists for all 13 categories
-    orgs, first_names, last_names, phones, emails = [], [], [], [], []
-    states, countries, cities, zips, addresses = [], [], [], [], []
-    categories, scores, crops = [], [], []
-    websites, linkedin_pages = [], []
+    all_parsed_data = []
 
     for index, row in df.iterrows():
-        raw_text = str(row['organization'])
-        # Also include any existing info from other columns to help the AI
-        other_info = " ".join([str(row[c]) for c in df.columns if c != 'organization' and pd.notna(row[c])])
-        full_raw_text = f"{raw_text} {other_info}".strip()
+        messy_text = str(row['organization'])
+        print(f"  Surgery in progress on: {messy_text[:40]}...")
 
-        print(f"  Analyzing: {full_raw_text}")
+        # 3. AI Decomposition (The "Puzzle" surgery)
+        # parsed_row: [First, Last, Company, Phone, Email, State, Country, City, Zip, Address, Category, Notes]
+        parsed_row = parse_messy_lead(messy_text)
 
-        # 3. AI Decomposition (First pass)
-        ai_result = classify_company(full_raw_text)
-        parts = [p.strip() for p in ai_result.split('|')]
-        while len(parts) < 13:
-            parts.append("")
-
-        company = parts[0]
+        company_name = parsed_row[2]
 
         # 4. Find website
-        website = find_website(company)
+        website = find_website(company_name)
 
-        # 5. Scrape and RE-CLASSIFY (Second pass)
+        # 5. Scrape and Enrichment
+        confidence_score = "0"
+        crop_type = "N/A"
         if website:
             scraped_text = scrape_website(website)
-            ai_result = classify_company(full_raw_text, scraped_text)
-            parts = [p.strip() for p in ai_result.split('|')]
-            while len(parts) < 13:
-                parts.append("")
+            enrich_result = classify_enrichment(company_name, scraped_text)
+            enrich_parts = [p.strip() for p in enrich_result.split('|')]
+            if len(enrich_parts) >= 2:
+                confidence_score = enrich_parts[0]
+                crop_type = enrich_parts[1]
 
         # 6. Find LinkedIn
-        linkedin = find_linkedin(parts[0])
+        linkedin = find_linkedin(company_name)
 
-        # Store all parts
-        orgs.append(parts[0])
-        first_names.append(parts[1])
-        last_names.append(parts[2])
-        phones.append(parts[3])
-        emails.append(parts[4])
-        states.append(parts[5])
-        countries.append(parts[6])
-        cities.append(parts[7])
-        zips.append(parts[8])
-        addresses.append(parts[9])
-        categories.append(parts[10])
-        scores.append(parts[11])
-        crops.append(parts[12])
-        websites.append(website)
-        linkedin_pages.append(linkedin)
+        # Assemble full data row
+        full_row = parsed_row + [website, linkedin, confidence_score, crop_type]
+        all_parsed_data.append(full_row)
 
-    # Reconstruct final dataframe with requested columns
-    enriched_df = pd.DataFrame({
-        'Organization/Company': orgs,
-        'first name': first_names,
-        'last name': last_names,
-        'phone number': phones,
-        'email': emails,
-        'state/region': states,
-        'country': countries,
-        'city': cities,
-        'zip code': zips,
-        'address': addresses,
-        'grower or supplier': categories,
-        'confidence score': scores,
-        'type of crop': crops,
-        'website': websites,
-        'linkedin': linkedin_pages
-    })
+    output_columns = [
+        'first name', 'last name', 'Organization/Company', 'phone number', 'email',
+        'state/region', 'country', 'city', 'zip code', 'address',
+        'grower or supplier', 'Notes', 'website', 'linkedin',
+        'confidence score', 'type of crop'
+    ]
+
+    final_df = pd.DataFrame(all_parsed_data, columns=output_columns)
 
     # 7. Export
     filename = os.path.basename(filepath)
-    output_filename = os.path.splitext(filename)[0] + "_enriched.xlsx"
+    output_filename = os.path.splitext(filename)[0] + "_Clean_Leads.xlsx"
     output_path = os.path.join(OUTPUT_FOLDER, output_filename)
-    export_to_excel(enriched_df, output_path)
+    export_to_excel(final_df, output_path)
 
 def main():
     if not os.path.exists(INPUT_FOLDER):
