@@ -27,42 +27,19 @@ def process_file(filepath):
     all_processed_data = []
 
     for index, row in df.iterrows():
-        # ARCHITECTURE IMPROVEMENT: Only use AI if key fields are missing
-        # We use pd.notna and check for non-empty strings
-        has_first = pd.notna(row['first_name']) and str(row['first_name']).strip() != ""
-        has_email = pd.notna(row['email']) and str(row['email']).strip() != ""
-        has_phone = pd.notna(row['phone']) and str(row['phone']).strip() != ""
+        # MANDATORY AI SURGERY for 100% accuracy as requested by user
+        # Combine entire row into a text blob to give AI full context
+        full_row_text = " ".join([str(v) for v in row.values if pd.notna(v)])
 
-        if has_first or has_email or has_phone:
-            print(f"  Structured data found for row {index}. Skipping AI surgery.")
-            # Map existing fields to our target structure
-            # [First, Last, Company, Phone, Email, State, Country, City, Zip, Address, Category, Notes]
-            parsed_row = [
-                row['first_name'],
-                row['last_name'],
-                row['organization'],
-                row['phone'],
-                row['email'],
-                row['state'],
-                row['country'],
-                row['city'],
-                row['postal_code'],
-                row['street'],
-                "Other", # Default Category
-                ""       # Default Notes
-            ]
-        else:
-            # FIX: Combine entire row into a text blob for AI surgery
-            messy_text = " ".join([str(v) for v in row.values if pd.notna(v)])
-            print(f"  Surgery in progress on: {messy_text[:40]}...")
-            parsed_row = parse_messy_lead(messy_text)
-            print(f"DEBUG: AI Returned -> {parsed_row}") # Add this line
+        print(f"  AI Surgery in progress for row {index}...")
+        parsed_row = parse_messy_lead(full_row_text)
+        print(f"DEBUG: AI Returned -> {parsed_row}")
 
-        # Clean company name: text before semi-colon
+        # Clean company name: text before semi-colon (Extra safety)
         company_name = parsed_row[2].split(';')[0].strip()
         parsed_row[2] = company_name
 
-        # 4. Find website
+        # 4. Find website using the cleaned company name
         website = find_website(company_name)
 
         # 5. Scrape and Enrichment
@@ -80,6 +57,7 @@ def process_file(filepath):
         linkedin = find_linkedin(company_name)
 
         # Assemble full data row
+        # parsed_row: [First, Last, Company, Phone, Email, State, Country, City, Zip, Address, Category, Notes]
         full_row = parsed_row + [website, linkedin, confidence_score, crop_type]
         all_processed_data.append(full_row)
 
