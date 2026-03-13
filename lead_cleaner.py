@@ -2,19 +2,30 @@ import pandas as pd
 
 def normalize_columns(df):
     """
-    Normalizes column names to standard fields.
+    Normalizes column names to standard fields based on common aliases.
     """
     mapping = {
-        'organization': ['organization', 'company', 'org', 'business name', 'company name', 'unnamed: 0'],
+        'first_name': ['first name', 'firstname', 'given name'],
+        'last_name': ['last name', 'lastname', 'surname'],
+        'email': ['email', 'e-mail', 'e-mail 1 - value', 'email address'],
+        'phone': ['phone', 'phone number', 'phone 1 - value', 'telephone', 'mobile', 'tel'],
+        'organization': ['organization', 'company', 'org', 'business name', 'company name', 'organization name', 'unnamed: 0'],
+        'street': ['street', 'address', 'address 1 - formatted', 'street address'],
+        'city': ['city'],
+        'state': ['state', 'region', 'province'],
+        'postal_code': ['postal code', 'zip', 'zip code', 'postcode'],
+        'country': ['country'],
         'designation': ['designation', 'title', 'job title', 'role', 'position']
     }
 
     new_cols = {}
     for col in df.columns:
         clean_col = str(col).lower().strip()
+        found = False
         for standard_name, aliases in mapping.items():
             if clean_col == standard_name or clean_col in aliases:
                 new_cols[col] = standard_name
+                found = True
                 break
 
     df = df.rename(columns=new_cols)
@@ -34,12 +45,11 @@ def clean_leads(df):
     """
     df = normalize_columns(df)
 
-    # We only care about having 'organization' for the AI to work with
-    if 'organization' not in df.columns:
-        return pd.DataFrame() # Still empty? Skip.
+    required_fields = [
+        'first_name', 'last_name', 'organization', 'email', 'phone',
+        'state', 'country', 'city', 'postal_code', 'street', 'designation'
+    ]
 
-    # Make sure other columns exist so the script doesn't crash
-    required_fields = ['first_name', 'last_name', 'email', 'phone', 'state', 'designation', 'street', 'city', 'postal_code', 'country']
     for field in required_fields:
         if field not in df.columns:
             df[field] = ""

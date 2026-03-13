@@ -17,22 +17,45 @@ def process_file(filepath):
     # 1. Load file
     df = load_file(filepath)
 
-    # 2. Clean leads (Identify organization/messy cell)
+    # 2. Clean leads (Identify columns)
     df = clean_leads(df)
 
     if df.empty:
         print(f"  File {filepath} resulted in empty dataframe after cleaning.")
         return
 
-    all_parsed_data = []
+    all_processed_data = []
 
     for index, row in df.iterrows():
-        messy_text = str(row['organization'])
-        print(f"  Surgery in progress on: {messy_text[:40]}...")
+        # ARCHITECTURE IMPROVEMENT: Only use AI if key fields are missing
+        # We use pd.notna and check for non-empty strings
+        has_first = pd.notna(row['first_name']) and str(row['first_name']).strip() != ""
+        has_email = pd.notna(row['email']) and str(row['email']).strip() != ""
+        has_phone = pd.notna(row['phone']) and str(row['phone']).strip() != ""
 
-        # 3. AI Decomposition (The "Puzzle" surgery)
-        # parsed_row: [First, Last, Company, Phone, Email, State, Country, City, Zip, Address, Category, Notes]
-        parsed_row = parse_messy_lead(messy_text)
+        if has_first or has_email or has_phone:
+            print(f"  Structured data found for row {index}. Skipping AI surgery.")
+            # Map existing fields to our target structure
+            # [First, Last, Company, Phone, Email, State, Country, City, Zip, Address, Category, Notes]
+            parsed_row = [
+                row['first_name'],
+                row['last_name'],
+                row['organization'],
+                row['phone'],
+                row['email'],
+                row['state'],
+                row['country'],
+                row['city'],
+                row['postal_code'],
+                row['street'],
+                "Other", # Default Category
+                ""       # Default Notes
+            ]
+        else:
+            # FIX: Combine entire row into a text blob for AI surgery
+            messy_text = " ".join([str(v) for v in row.values if pd.notna(v)])
+            print(f"  Surgery in progress on: {messy_text[:40]}...")
+            parsed_row = parse_messy_lead(messy_text)
 
         company_name = parsed_row[2]
 
@@ -55,7 +78,7 @@ def process_file(filepath):
 
         # Assemble full data row
         full_row = parsed_row + [website, linkedin, confidence_score, crop_type]
-        all_parsed_data.append(full_row)
+        all_processed_data.append(full_row)
 
     output_columns = [
         'first name', 'last name', 'Organization/Company', 'phone number', 'email',
@@ -64,7 +87,7 @@ def process_file(filepath):
         'confidence score', 'type of crop'
     ]
 
-    final_df = pd.DataFrame(all_parsed_data, columns=output_columns)
+    final_df = pd.DataFrame(all_processed_data, columns=output_columns)
 
     # 7. Export
     filename = os.path.basename(filepath)
