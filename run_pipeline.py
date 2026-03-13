@@ -57,7 +57,9 @@ def process_file(filepath):
             print(f"  Surgery in progress on: {messy_text[:40]}...")
             parsed_row = parse_messy_lead(messy_text)
 
-        company_name = parsed_row[2]
+        # Clean company name: text before semi-colon
+        company_name = parsed_row[2].split(';')[0].strip()
+        parsed_row[2] = company_name
 
         # 4. Find website
         website = find_website(company_name)
