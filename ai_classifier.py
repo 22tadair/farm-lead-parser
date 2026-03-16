@@ -1,14 +1,21 @@
 import google.generativeai as genai
+import os
+from dotenv import load_dotenv
 
-# Hardcoded API Key as requested by the user
-API_KEY = "AIzaSyDI3m_XzHKh7KHwreGUWSyqn0MZnWKwqss"
+# Load variables from .env file
+load_dotenv()
 
 def parse_messy_lead(raw_blob):
     """
     Takes a massive string of text and breaks it into 12 structured categories.
     Extremely strict about separating Organization/Company from location data.
     """
-    genai.configure(api_key=API_KEY)
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        print("Error: No API key found. Check your .env file.")
+        return ["N/A"] * 12
+
+    genai.configure(api_key=api_key)
     # Using gemini-2.0-flash
     model = genai.GenerativeModel('gemini-2.0-flash')
 
@@ -67,7 +74,10 @@ def classify_enrichment(company_name, scraped_text):
     """
     Secondary classification based on scraped text.
     """
-    genai.configure(api_key=API_KEY)
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key: return "0 | N/A"
+
+    genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.0-flash')
 
     prompt = f"""
