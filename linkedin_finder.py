@@ -1,4 +1,4 @@
-from ddgs import DDGS
+from duckduckgo_search import DDGS
 import pandas as pd
 
 def find_linkedin(company_name):

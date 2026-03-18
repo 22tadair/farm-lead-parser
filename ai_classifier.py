@@ -6,11 +6,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def get_client():
+    """
+    Initializes and returns the Gemini client with a forced stable API version.
+    """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         print("CRITICAL: No API Key found in .env")
         return None
-    return genai.Client(api_key=api_key)
+    # Force 'v1' to avoid 404 NOT_FOUND errors from beta endpoints
+    return genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
 
 def parse_messy_lead(raw_blob):
     """
@@ -22,7 +26,7 @@ def parse_messy_lead(raw_blob):
 
     prompt = f"""
     Act as a data parser. Split this lead into exactly 12 fields separated by |
-    Fields: First, Last, Company, Phone, Email, State, Country, City, Zip, Address, Role, Notes
+    Stop looking at this as a single name. Treat it as a puzzle and extract the pieces.
 
     CRITICAL RULE: The 'Company' field MUST contain ONLY the name of the business.
     You MUST strip out any City, State, Zip, Address, or extra notes from the 'Company' field.
@@ -30,6 +34,7 @@ def parse_messy_lead(raw_blob):
     If you see a semi-colon (;), the text BEFORE it is the Company Name.
     The text AFTER it is likely Location, Brand, or other notes.
 
+    Fields: First, Last, Company, Phone, Email, State, Country, City, Zip, Address, Role, Notes
     Data: {raw_blob}
     """
 
@@ -45,7 +50,9 @@ def parse_messy_lead(raw_blob):
             if text.startswith("json"): text = text[4:].strip()
             elif text.startswith("|"): text = text.strip()
 
-        parts = [p.strip() for p in text.split('|')]
+        # Robust parsing: remove empty strings from leading/trailing pipes
+        parts = [p.strip() for p in text.split('|') if p.strip()]
+
         while len(parts) < 12:
             parts.append("N/A")
 
