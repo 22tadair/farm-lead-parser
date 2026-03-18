@@ -3,9 +3,9 @@ import pandas as pd
 
 def find_linkedin(company_name):
     """
-    Finds the company LinkedIn page using DuckDuckGo search library.
+    Finds the company LinkedIn page using DDGS.
     """
-    if not company_name or pd.isna(company_name):
+    if not company_name or pd.isna(company_name) or company_name == "N/A":
         return ""
 
     query = f"{company_name} LinkedIn company page"

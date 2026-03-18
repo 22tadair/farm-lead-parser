@@ -29,7 +29,7 @@ def scrape_page(url):
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
             text = extract_text(soup)
-            return text[:2000]
+            return text[:10000] # Increased limit for more context
     except Exception as e:
         print(f"Error scraping {url}: {e}")
     return ""
@@ -53,7 +53,7 @@ def scrape_website(homepage_url):
         response = requests.get(homepage_url, headers=headers, timeout=10)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
-            homepage_text = extract_text(soup)[:2000]
+            homepage_text = extract_text(soup)[:10000]
 
             # Find About page link
             about_url = None

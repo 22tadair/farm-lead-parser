@@ -3,9 +3,9 @@ import pandas as pd
 
 def find_website(company_name):
     """
-    Finds the company website using DuckDuckGo search library.
+    Finds the company website using DDGS.
     """
-    if not company_name or pd.isna(company_name):
+    if not company_name or pd.isna(company_name) or company_name == "N/A":
         return ""
 
     query = f"{company_name} official website"
@@ -15,7 +15,6 @@ def find_website(company_name):
             results = ddgs.text(query, max_results=5)
             for res in results:
                 href = res.get('href', '')
-                # Basic heuristic: avoid social media if possible for the official website
                 if any(x in href for x in ['facebook.com', 'linkedin.com', 'twitter.com', 'instagram.com']):
                     continue
                 return href

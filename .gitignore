@@ -3,3 +3,7 @@ output/*.xlsx
 output/*.xls
 output/*.csv
 input/sample_leads.csv
+input/test_leads.csv
+input/messy_leads.csv
+input/final_messy_test.csv
+.env

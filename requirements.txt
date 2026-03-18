@@ -1,0 +1,8 @@
+pandas
+openpyxl
+requests
+beautifulsoup4
+google-genai
+duckduckgo_search
+python-dotenv
+xlrd
