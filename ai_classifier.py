@@ -17,7 +17,7 @@ def get_client():
 
 def parse_messy_lead(raw_blob):
     """
-    Takes a massive string of text and breaks it into 12 structured categories using gemini-2.5-flash.
+    Takes a massive string of text and breaks it into 12 structured categories using gemini-3-flash-preview.
     """
     client = get_client()
     if not client:
@@ -35,12 +35,15 @@ def parse_messy_lead(raw_blob):
 
     Fields: First, Last, Company, Phone, Email, State, Country, City, Zip, Address, Role, Notes
     Data: {raw_blob}
+
+    RETURN ONLY ONE LINE in this exact format, separated by pipes (|):
+    First | Last | Company | Phone | Email | State | Country | City | Zip | Address | Category | Notes
     """
 
     try:
-        # Using gemini-2.5-flash as the direct successor to 1.5 Flash
+        # Using gemini-3-flash-preview as the latest high-performance model
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-3-flash-preview',
             contents=prompt
         )
         text = response.text.strip()
@@ -50,7 +53,7 @@ def parse_messy_lead(raw_blob):
             if text.startswith("json"): text = text[4:].strip()
             elif text.startswith("|"): text = text.strip()
 
-        # Robust parsing: strip outer pipes and split, preserving internal empty strings
+        # Robust parsing: strip outer pipes and split
         text = text.strip('|').strip()
         parts = [p.strip() for p in text.split('|')]
 
@@ -64,7 +67,7 @@ def parse_messy_lead(raw_blob):
 
 def classify_enrichment(company_name, scraped_text):
     """
-    Secondary classification based on scraped text using gemini-2.5-flash.
+    Secondary classification based on scraped text using gemini-3-flash-preview.
     """
     client = get_client()
     if not client:
@@ -78,12 +81,12 @@ def classify_enrichment(company_name, scraped_text):
     Company: {company_name}
     Text: {scraped_text}
 
-    Format: Score | Crop Type
+    Format ONLY: Score | Crop Type
     """
 
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-3-flash-preview',
             contents=prompt
         )
         text = response.text.strip()
