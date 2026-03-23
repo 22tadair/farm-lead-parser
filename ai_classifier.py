@@ -18,7 +18,7 @@ def get_client():
 
 def parse_messy_lead(raw_blob):
     """
-    Takes a massive string of text and breaks it into 12 structured categories using gemini-1.5-flash.
+    Takes a massive string of text and breaks it into 12 structured categories using models/gemini-1.5-flash.
     """
     client = get_client()
     if not client:
@@ -39,8 +39,9 @@ def parse_messy_lead(raw_blob):
     """
 
     try:
+        # Use full model path 'models/gemini-1.5-flash'
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='models/gemini-1.5-flash',
             contents=prompt
         )
         text = response.text.strip()
@@ -63,7 +64,7 @@ def parse_messy_lead(raw_blob):
 
 def classify_enrichment(company_name, scraped_text):
     """
-    Secondary classification based on scraped text using gemini-1.5-flash.
+    Secondary classification based on scraped text using models/gemini-1.5-flash.
     """
     client = get_client()
     if not client:
@@ -81,8 +82,9 @@ def classify_enrichment(company_name, scraped_text):
     """
 
     try:
+        # Use full model path 'models/gemini-1.5-flash'
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='models/gemini-1.5-flash',
             contents=prompt
         )
         text = response.text.strip()
