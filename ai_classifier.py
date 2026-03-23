@@ -7,18 +7,17 @@ load_dotenv()
 
 def get_client():
     """
-    Initializes and returns the Gemini client with a forced stable API version.
+    Initializes and returns the Gemini client using the latest SDK.
     """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         print("CRITICAL: No API Key found in .env")
         return None
-    # Force 'v1' to avoid 404 NOT_FOUND errors from beta endpoints
-    return genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
+    return genai.Client(api_key=api_key)
 
 def parse_messy_lead(raw_blob):
     """
-    Takes a massive string of text and breaks it into 12 structured categories using models/gemini-1.5-flash.
+    Takes a massive string of text and breaks it into 12 structured categories using gemini-2.5-flash.
     """
     client = get_client()
     if not client:
@@ -39,9 +38,9 @@ def parse_messy_lead(raw_blob):
     """
 
     try:
-        # Use full model path 'models/gemini-1.5-flash'
+        # Using gemini-2.5-flash as the direct successor to 1.5 Flash
         response = client.models.generate_content(
-            model='models/gemini-1.5-flash',
+            model='gemini-2.5-flash',
             contents=prompt
         )
         text = response.text.strip()
@@ -51,8 +50,9 @@ def parse_messy_lead(raw_blob):
             if text.startswith("json"): text = text[4:].strip()
             elif text.startswith("|"): text = text.strip()
 
-        # Robust parsing: remove empty strings from leading/trailing pipes
-        parts = [p.strip() for p in text.split('|') if p.strip()]
+        # Robust parsing: strip outer pipes and split, preserving internal empty strings
+        text = text.strip('|').strip()
+        parts = [p.strip() for p in text.split('|')]
 
         while len(parts) < 12:
             parts.append("N/A")
@@ -64,7 +64,7 @@ def parse_messy_lead(raw_blob):
 
 def classify_enrichment(company_name, scraped_text):
     """
-    Secondary classification based on scraped text using models/gemini-1.5-flash.
+    Secondary classification based on scraped text using gemini-2.5-flash.
     """
     client = get_client()
     if not client:
@@ -82,9 +82,8 @@ def classify_enrichment(company_name, scraped_text):
     """
 
     try:
-        # Use full model path 'models/gemini-1.5-flash'
         response = client.models.generate_content(
-            model='models/gemini-1.5-flash',
+            model='gemini-2.5-flash',
             contents=prompt
         )
         text = response.text.strip()
