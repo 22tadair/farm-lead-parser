@@ -49,12 +49,22 @@ def process_file(filepath):
         time.sleep(2)
 
         for parsed_row in parsed_batch:
-            # Clean company name: text before semi-colon
-            company_name = parsed_row[2].split(';')[0].strip()
-            parsed_row[2] = company_name
+            # FIX: Safety check for NoneType and structure
+            if parsed_row and len(parsed_row) > 2 and parsed_row[2] is not None:
+                # Clean company name: text before semi-colon
+                company_name = str(parsed_row[2]).split(';')[0].strip()
+                parsed_row[2] = company_name
+            else:
+                company_name = "Unknown"
+                print(f"Warning: AI returned invalid or empty data for a lead in this batch.")
+                # Ensure parsed_row is a list if it was None
+                if parsed_row is None:
+                    parsed_row = ["N/A"] * 12
 
             # 4. Find website using the cleaned company name
-            website = find_website(company_name)
+            website = ""
+            if company_name != "Unknown":
+                website = find_website(company_name)
 
             # 5. Scrape and Enrichment
             confidence_score = "0"
@@ -70,7 +80,9 @@ def process_file(filepath):
                 time.sleep(1)
 
             # 6. Find LinkedIn
-            linkedin = find_linkedin(company_name)
+            linkedin = ""
+            if company_name != "Unknown":
+                linkedin = find_linkedin(company_name)
 
             # Assemble full data row
             full_row = parsed_row + [website, linkedin, confidence_score, crop_type]
