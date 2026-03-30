@@ -1,4 +1,6 @@
 import os
+import time
+import json
 from google import genai
 from dotenv import load_dotenv
 
@@ -15,17 +17,21 @@ def get_client():
         return None
     return genai.Client(api_key=api_key)
 
-def parse_messy_lead(raw_blob):
+def parse_leads_batch(leads_blob_list):
     """
-    Takes a massive string of text and breaks it into 12 structured categories using gemini-3-flash-preview.
+    Takes a list of messy lead strings and parses them as a batch using gemini-3-flash-preview.
+    Returns a list of 12-field lists.
     """
     client = get_client()
     if not client:
-        return ["N/A"] * 12
+        return [["N/A"] * 12] * len(leads_blob_list)
+
+    # Format the batch for the prompt
+    leads_text = "\n".join([f"LEAD {i+1}: {lead}" for i, lead in enumerate(leads_blob_list)])
 
     prompt = f"""
-    Act as a data parser. Split this lead into exactly 12 fields separated by |
-    Stop looking at this as a single name. Treat it as a puzzle and extract the pieces.
+    Act as a data parser. You will be given a batch of {len(leads_blob_list)} messy farm leads.
+    Parse each lead into exactly 12 fields.
 
     CRITICAL RULE: The 'Company' field MUST contain ONLY the name of the business.
     You MUST strip out any City, State, Zip, Address, or extra notes from the 'Company' field.
@@ -33,41 +39,61 @@ def parse_messy_lead(raw_blob):
     If you see a semi-colon (;), the text BEFORE it is the Company Name.
     The text AFTER it is likely Location, Brand, or other notes.
 
-    Fields: First, Last, Company, Phone, Email, State, Country, City, Zip, Address, Role, Notes
-    Data: {raw_blob}
+    Fields for each lead: First Name, Last Name, Company Name, Phone, Email, State, Country, City, Zip, Address, Role, Notes.
 
-    RETURN ONLY ONE LINE in this exact format, separated by pipes (|):
-    First | Last | Company | Phone | Email | State | Country | City | Zip | Address | Category | Notes
+    DATA BATCH:
+    {leads_text}
+
+    RETURN the result as a JSON list of objects, each with these keys:
+    "first", "last", "company", "phone", "email", "state", "country", "city", "zip", "address", "role", "notes"
     """
 
-    try:
-        # Using gemini-3-flash-preview as the latest high-performance model
-        response = client.models.generate_content(
-            model='gemini-3-flash-preview',
-            contents=prompt
-        )
-        text = response.text.strip()
-        # Handle markdown blocks if present
-        if "```" in text:
-            text = text.split("```")[1]
-            if text.startswith("json"): text = text[4:].strip()
-            elif text.startswith("|"): text = text.strip()
+    for i in range(3): # Max 3 retries
+        try:
+            response = client.models.generate_content(
+                model='gemini-3-flash-preview',
+                contents=prompt,
+                config={'response_mime_type': 'application/json'}
+            )
 
-        # Robust parsing: strip outer pipes and split
-        text = text.strip('|').strip()
-        parts = [p.strip() for p in text.split('|')]
+            # Use parsed JSON response
+            results = json.loads(response.text)
 
-        while len(parts) < 12:
-            parts.append("N/A")
+            # Map JSON objects back to lists
+            parsed_batch = []
+            for item in results:
+                row = [
+                    item.get("first", "N/A"),
+                    item.get("last", "N/A"),
+                    item.get("company", "N/A"),
+                    item.get("phone", "N/A"),
+                    item.get("email", "N/A"),
+                    item.get("state", "N/A"),
+                    item.get("country", "N/A"),
+                    item.get("city", "N/A"),
+                    item.get("zip", "N/A"),
+                    item.get("address", "N/A"),
+                    item.get("role", "N/A"),
+                    item.get("notes", "N/A")
+                ]
+                parsed_batch.append(row)
 
-        return parts[:12]
-    except Exception as e:
-        print(f"AI Error in parse_messy_lead: {e}")
-        return ["Error"] * 12
+            return parsed_batch
+
+        except Exception as e:
+            if "429" in str(e) or "503" in str(e):
+                wait_time = (i + 1) * 20
+                print(f"Rate limit hit in batch parsing. Waiting {wait_time} seconds...")
+                time.sleep(wait_time)
+            else:
+                print(f"AI Error in parse_leads_batch: {e}")
+                break
+
+    return [["Error"] * 12] * len(leads_blob_list)
 
 def classify_enrichment(company_name, scraped_text):
     """
-    Secondary classification based on scraped text using gemini-3-flash-preview.
+    Secondary classification based on scraped text with retry mechanism.
     """
     client = get_client()
     if not client:
@@ -84,15 +110,23 @@ def classify_enrichment(company_name, scraped_text):
     Format ONLY: Score | Crop Type
     """
 
-    try:
-        response = client.models.generate_content(
-            model='gemini-3-flash-preview',
-            contents=prompt
-        )
-        text = response.text.strip()
-        if "Score |" in text:
-            text = text.split("\n")[-1]
-        return text
-    except Exception as e:
-        print(f"AI Error in classify_enrichment: {e}")
-        return "0 | N/A"
+    for i in range(3):
+        try:
+            response = client.models.generate_content(
+                model='gemini-3-flash-preview',
+                contents=prompt
+            )
+            text = response.text.strip()
+            if "Score |" in text:
+                text = text.split("\n")[-1]
+            return text
+        except Exception as e:
+            if "429" in str(e) or "503" in str(e):
+                wait_time = (i + 1) * 10
+                print(f"Rate limit hit in enrichment. Waiting {wait_time} seconds...")
+                time.sleep(wait_time)
+            else:
+                print(f"AI Error in classify_enrichment: {e}")
+                break
+
+    return "0 | N/A"

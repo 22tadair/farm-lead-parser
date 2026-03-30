@@ -1,15 +1,17 @@
 import os
 import pandas as pd
+import time
 from file_loader import load_file
 from lead_cleaner import clean_leads
 from website_finder import find_website
 from web_scraper import scrape_website
-from ai_classifier import parse_messy_lead, classify_enrichment
+from ai_classifier import parse_leads_batch, classify_enrichment
 from linkedin_finder import find_linkedin
 from exporter import export_to_excel
 
 INPUT_FOLDER = 'input'
 OUTPUT_FOLDER = 'output'
+BATCH_SIZE = 5
 
 def process_file(filepath):
     print(f"Processing {filepath}...")
@@ -24,42 +26,55 @@ def process_file(filepath):
         print(f"  File {filepath} resulted in empty dataframe after cleaning.")
         return
 
+    # Filter out empty leads and collect non-empty blobs
+    blobs = []
+    for _, row in df.iterrows():
+        blob = " ".join([str(v) for v in row.values if pd.notna(v)]).strip()
+        blobs.append(blob)
+
     all_processed_data = []
 
-    for index, row in df.iterrows():
-        # MANDATORY AI SURGERY for 100% accuracy as requested by user
-        # Combine entire row into a text blob to give AI full context
-        full_row_text = " ".join([str(v) for v in row.values if pd.notna(v)])
+    # Process in batches of 5
+    for i in range(0, len(blobs), BATCH_SIZE):
+        batch = [b for b in blobs[i:i + BATCH_SIZE] if b]
+        if not batch:
+            continue
 
-        print(f"  AI Surgery in progress for row {index}...")
-        parsed_row = parse_messy_lead(full_row_text)
-        print(f"DEBUG: AI Returned -> {parsed_row}")
+        print(f"  Processing batch {i//BATCH_SIZE + 1} ({len(batch)} leads)...")
 
-        # Clean company name: text before semi-colon (Extra safety)
-        company_name = parsed_row[2].split(';')[0].strip()
-        parsed_row[2] = company_name
+        # 3. AI Decomposition (Batch "Puzzle" surgery)
+        parsed_batch = parse_leads_batch(batch)
 
-        # 4. Find website using the cleaned company name
-        website = find_website(company_name)
+        # Throttling: brief pause between batches
+        time.sleep(2)
 
-        # 5. Scrape and Enrichment
-        confidence_score = "0"
-        crop_type = "N/A"
-        if website:
-            scraped_text = scrape_website(website)
-            enrich_result = classify_enrichment(company_name, scraped_text)
-            enrich_parts = [p.strip() for p in enrich_result.split('|')]
-            if len(enrich_parts) >= 2:
-                confidence_score = enrich_parts[0]
-                crop_type = enrich_parts[1]
+        for parsed_row in parsed_batch:
+            # Clean company name: text before semi-colon
+            company_name = parsed_row[2].split(';')[0].strip()
+            parsed_row[2] = company_name
 
-        # 6. Find LinkedIn
-        linkedin = find_linkedin(company_name)
+            # 4. Find website using the cleaned company name
+            website = find_website(company_name)
 
-        # Assemble full data row
-        # parsed_row: [First, Last, Company, Phone, Email, State, Country, City, Zip, Address, Category, Notes]
-        full_row = parsed_row + [website, linkedin, confidence_score, crop_type]
-        all_processed_data.append(full_row)
+            # 5. Scrape and Enrichment
+            confidence_score = "0"
+            crop_type = "N/A"
+            if website:
+                scraped_text = scrape_website(website)
+                enrich_result = classify_enrichment(company_name, scraped_text)
+                enrich_parts = [p.strip() for p in enrich_result.split('|')]
+                if len(enrich_parts) >= 2:
+                    confidence_score = enrich_parts[0]
+                    crop_type = enrich_parts[1]
+                # Throttling: brief pause between enrichment calls
+                time.sleep(1)
+
+            # 6. Find LinkedIn
+            linkedin = find_linkedin(company_name)
+
+            # Assemble full data row
+            full_row = parsed_row + [website, linkedin, confidence_score, crop_type]
+            all_processed_data.append(full_row)
 
     output_columns = [
         'first name', 'last name', 'Organization/Company', 'phone number', 'email',
