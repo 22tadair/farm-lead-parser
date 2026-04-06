@@ -20,6 +20,7 @@ def get_client():
 def parse_leads_batch(leads_blob_list):
     """
     Takes a list of messy lead strings and parses them as a batch using gemini-3-flash-preview.
+    Returns a list of 12-field lists.
     """
     client = get_client()
     if not client:
@@ -34,19 +35,22 @@ def parse_leads_batch(leads_blob_list):
     CRITICAL RULE for Company Name: The 'Company' field MUST contain ONLY the name of the business.
     You MUST strip out any City, State, Zip, Address, or extra notes from the 'Company' field.
 
-    GENERALIZATION RULE for 'Role' and 'Category':
+    If you see a semi-colon (;), the text BEFORE it is the Company Name.
+    The text AFTER it is likely Location, Brand, or other notes.
+
+    GENERALIZATION RULE for 'Grower or Supplier':
     - Map specific roles and types to either 'Grower' or 'Supplier'.
-    - If the lead is a Farmer, Rancher, Producer, or Orchardist, category is 'Grower'.
-    - If the lead is a Dealer, Sales Rep, Manufacturer, Retailer, or Distributor, category is 'Supplier'.
+    - If the lead is a Farmer, Rancher, Producer, or Orchardist, the value is 'Grower'.
+    - If the lead is a Dealer, Sales Rep, Manufacturer, Retailer, or Distributor, the value is 'Supplier'.
     - Apply this strictly.
 
-    Fields for each lead: First Name, Last Name, Company Name, Phone, Email, State, Country, City, Zip, Address, Category (Grower or Supplier), Notes.
+    Fields for each lead: First Name, Last Name, Company Name, Phone, Email, State, Country, City, Zip, Address, Grower or Supplier, Notes.
 
     DATA BATCH:
     {leads_text}
 
     RETURN the result as a JSON list of objects, each with these keys:
-    "first", "last", "company", "phone", "email", "state", "country", "city", "zip", "address", "category", "notes"
+    "first", "last", "company", "phone", "email", "state", "country", "city", "zip", "address", "grower_or_supplier", "notes"
     """
 
     for i in range(3):
@@ -70,7 +74,7 @@ def parse_leads_batch(leads_blob_list):
                     item.get("city", "N/A"),
                     item.get("zip", "N/A"),
                     item.get("address", "N/A"),
-                    item.get("category", "Other"),
+                    item.get("grower_or_supplier", "Other"),
                     item.get("notes", "N/A")
                 ]
                 parsed_batch.append(row)
@@ -85,7 +89,7 @@ def parse_leads_batch(leads_blob_list):
                 break
     return [["Error"] * 12] * len(leads_blob_list)
 
-def classify_enrichment(company_name, scraped_text):
+def classify_enrichment(organization_company, scraped_text):
     """
     Secondary classification based on scraped text.
     """
@@ -96,13 +100,13 @@ def classify_enrichment(company_name, scraped_text):
     prompt = f"""
     Based on the following company name and scraped website text, provide:
     1. Confidence Score (0-100)
-    2. Type of Crop (List crops if Grower, else 'N/A'. If Grower but none found, 'General Agriculture')
+    2. Type of Crop (List crops if Grower, else 'N/A'. If Grower but none found, return 'General Agriculture')
 
     STRICT CATEGORY RULE: Only use 'Grower' or 'Supplier'.
     - Farmer/Producer/Farm -> Grower
     - Dealer/Manufacturer/Sales -> Supplier
 
-    Company: {company_name}
+    Company: {organization_company}
     Text: {scraped_text}
 
     Format ONLY: Score | Crop Type

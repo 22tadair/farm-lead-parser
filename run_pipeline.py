@@ -85,6 +85,7 @@ def process_file(filepath):
                 linkedin = find_linkedin(organization_company)
 
             # Assemble full data row
+            # parsed_row contains the 12 fields from the AI (including "Grower or Supplier")
             full_row = parsed_row + [website, linkedin, confidence_score, crop_type]
             all_processed_data.append(full_row)
 
