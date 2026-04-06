@@ -1,14 +1,14 @@
 from duckduckgo_search import DDGS
 import pandas as pd
 
-def find_linkedin(company_name):
+def find_linkedin(organization_company):
     """
     Finds the company LinkedIn page using DDGS.
     """
-    if not company_name or pd.isna(company_name) or company_name == "N/A":
+    if not organization_company or pd.isna(organization_company) or organization_company == "N/A":
         return ""
 
-    query = f"{company_name} LinkedIn company page"
+    query = f"{organization_company} LinkedIn company page"
 
     try:
         with DDGS() as ddgs:
@@ -18,6 +18,6 @@ def find_linkedin(company_name):
                 if 'linkedin.com/company/' in href:
                     return href
     except Exception as e:
-        print(f"Error searching LinkedIn for {company_name}: {e}")
+        print(f"Error searching LinkedIn for {organization_company}: {e}")
 
     return ""

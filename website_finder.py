@@ -1,14 +1,14 @@
 from duckduckgo_search import DDGS
 import pandas as pd
 
-def find_website(company_name):
+def find_website(organization_company):
     """
     Finds the company website using DDGS.
     """
-    if not company_name or pd.isna(company_name) or company_name == "N/A":
+    if not organization_company or pd.isna(organization_company) or organization_company == "N/A":
         return ""
 
-    query = f"{company_name} official website"
+    query = f"{organization_company} official website"
 
     try:
         with DDGS() as ddgs:
@@ -19,6 +19,6 @@ def find_website(company_name):
                     continue
                 return href
     except Exception as e:
-        print(f"Error searching for {company_name}: {e}")
+        print(f"Error searching for {organization_company}: {e}")
 
     return ""

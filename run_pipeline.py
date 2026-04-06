@@ -51,27 +51,27 @@ def process_file(filepath):
         for parsed_row in parsed_batch:
             # FIX: Safety check for NoneType and structure
             if parsed_row and len(parsed_row) > 2 and parsed_row[2] is not None:
-                # Clean company name: text before semi-colon
-                company_name = str(parsed_row[2]).split(';')[0].strip()
-                parsed_row[2] = company_name
+                # Clean organization name: text before semi-colon
+                organization_company = str(parsed_row[2]).split(';')[0].strip()
+                parsed_row[2] = organization_company
             else:
-                company_name = "Unknown"
+                organization_company = "Unknown"
                 print(f"Warning: AI returned invalid or empty data for a lead in this batch.")
                 # Ensure parsed_row is a list if it was None
                 if parsed_row is None:
                     parsed_row = ["N/A"] * 12
 
-            # 4. Find website using the cleaned company name
+            # 4. Find website using the cleaned organization name
             website = ""
-            if company_name != "Unknown":
-                website = find_website(company_name)
+            if organization_company != "Unknown":
+                website = find_website(organization_company)
 
             # 5. Scrape and Enrichment
             confidence_score = "0"
             crop_type = "N/A"
             if website:
                 scraped_text = scrape_website(website)
-                enrich_result = classify_enrichment(company_name, scraped_text)
+                enrich_result = classify_enrichment(organization_company, scraped_text)
                 enrich_parts = [p.strip() for p in enrich_result.split('|')]
                 if len(enrich_parts) >= 2:
                     confidence_score = enrich_parts[0]
@@ -81,8 +81,8 @@ def process_file(filepath):
 
             # 6. Find LinkedIn
             linkedin = ""
-            if company_name != "Unknown":
-                linkedin = find_linkedin(company_name)
+            if organization_company != "Unknown":
+                linkedin = find_linkedin(organization_company)
 
             # Assemble full data row
             full_row = parsed_row + [website, linkedin, confidence_score, crop_type]
